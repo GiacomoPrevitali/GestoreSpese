@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gestione Spese</title>
+    <link rel="icon" type="image/x-icon" href="logo.ico" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  </head>
+  <body>
+    <nav>
+      <div class="nav-brand">💶 Spese</div>
+      <button class="nav-tab active" onclick="switchTab('dashboard')">
+        📊 Dashboard
+      </button>
+      <button class="nav-tab" onclick="switchTab('uscite')">💸 Uscite</button>
+      <button class="nav-tab" onclick="switchTab('entrate')">💰 Entrate</button>
+      <button class="nav-tab" onclick="switchTab('gestione')">
+        📋 Gestione
+      </button>
+      <button class="nav-tab" onclick="switchTab('impostazioni')">
+        ⚙️ Impostazioni
+      </button>
+      <button class="nav-tab" onclick="logout()" style="margin-left: auto">
+        🔓 Logout
+      </button>
+    </nav>
+    <main>
+      <!-- ═══════════ DASHBOARD ═══════════ -->
+      <div class="tab-content active" id="tab-dashboard">
+        <div class="sec-hdr">
+          <div class="sec-title">📊 Dashboard</div>
+          <div class="pills" id="dash-year-pills">
+            <button class="pill" onclick="setDashYear('tutti', this)">
+              Tutti
+            </button>
+            <button class="pill" onclick="setDashYear('2024', this)">
+              2024
+            </button>
+            <button class="pill" onclick="setDashYear('2025', this)">
+              2025
+            </button>
+            <button class="pill active" onclick="setDashYear('2026', this)">
+              2026
+            </button>
+          </div>
+        </div>
+        <!-- Stats -->
+        <div class="grid-4" id="dash-stats"></div>
+        <!-- SALDI -->
+        <div class="section-gap">
+          <div class="sec-hdr" style="margin-bottom: 0.75rem">
+            <div style="font-size: 1rem; font-weight: 700">
+              💳 Saldi Attuali
+            </div>
+            <small style="color: var(--muted)"
+              >Basati su tutte le transazioni · Imposta i saldi iniziali in
+              Impostazioni</small
+            >
+          </div>
+          <div class="grid-2" id="saldi-cards"></div>
+        </div>
+        <!-- Charts row -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Andamento Mensile Uscite (€)</div>
+            <div class="chart-wrap-lg"><canvas id="chartMonthly"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Uscite per Categoria</div>
+            <div class="chart-wrap-lg"><canvas id="chartCat"></canvas></div>
+          </div>
+        </div>
+        <!-- Yearly comparison -->
+        <div class="card section-gap">
+          <div class="card-title">Confronto Mensile per Anno (Uscite)</div>
+          <div class="chart-wrap-lg"><canvas id="chartCompare"></canvas></div>
+        </div>
+        <!-- Uscite per Categoria -->
+        <div class="card section-gap">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 0.75rem;
+            "
+          >
+            <div class="card-title" style="margin-bottom: 0">
+              Uscite Mensili per Categoria
+            </div>
+            <select
+              id="dash-cat-select"
+              onchange="renderDashCatChart()"
+              style="
+                padding: 0.35rem 0.7rem;
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                font-size: 0.82rem;
+                background: #fff;
+                color: var(--text);
+                outline: none;
+              "
+            >
+              <option value="">Seleziona categoria…</option>
+            </select>
+          </div>
+          <div class="chart-wrap-lg">
+            <canvas id="chartUsciteCategoria"></canvas>
+          </div>
+        </div>
+        <!-- Entrate Charts (in Dashboard) -->
+        <div class="card section-gap">
+          <div class="card-title">Andamento Mensile Entrate</div>
+          <div class="chart-wrap-lg">
+            <canvas id="chartEntrateMonthly"></canvas>
+          </div>
+        </div>
+        <div class="grid-2 section-gap">
+          <div class="card">
+            <div class="card-title">Provenienza Entrate</div>
+            <div class="chart-wrap-lg">
+              <canvas id="chartEntrateProvenienza"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Entrate per Tipo (Conto / Portafoglio)</div>
+            <div class="chart-wrap-lg">
+              <canvas id="chartEntrateTipo"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="card section-gap">
+          <div class="card-title">Confronto Mensile Entrate per Anno</div>
+          <div class="chart-wrap-lg">
+            <canvas id="chartEntrateCompare"></canvas>
+          </div>
+        </div>
+
+        <!-- RESOCONTO -->
+        <div class="card section-gap">
+          <div
+            style="font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem"
+          >
+            📋 Resoconto Mensile
+          </div>
+          <div class="tbl-wrap" id="resoconto-wrap"></div>
+        </div>
+      </div>
+
+      <!-- ═══════════ USCITE ═══════════ -->
+      <div class="tab-content" id="tab-uscite">
+        <div class="sec-hdr">
+          <div class="sec-title">💸 Uscite</div>
+          <button
+            class="btn btn-primary"
+            onclick="openModal('modal-add-uscita')"
+          >
+            + Aggiungi Uscita
+          </button>
+        </div>
+        <div class="filters">
+          <select id="f-uscita-year" onchange="renderUscite()">
+            <option value="">Tutti gli anni</option>
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+          </select>
+          <select id="f-uscita-month" onchange="renderUscite()">
+            <option value="">Tutti i mesi</option>
+          </select>
+          <select id="f-uscita-cat" onchange="renderUscite()">
+            <option value="">Tutte le categorie</option>
+          </select>
+          <select id="f-uscita-tipo" onchange="renderUscite()">
+            <option value="">Tutti i tipi</option>
+          </select>
+          <input
+            type="text"
+            id="f-uscita-search"
+            placeholder="🔍 Cerca descrizione…"
+            oninput="renderUscite()"
+            style="flex: 1; min-width: 160px"
+          />
+        </div>
+        <div class="tbl-wrap">
+          <table id="tbl-uscite">
+            <thead>
+              <tr>
+                <th onclick="sortTable('uscite', 'data')" data-sort="data">
+                  Data
+                </th>
+                <th
+                  onclick="sortTable('uscite', 'descrizione')"
+                  data-sort="descrizione"
+                >
+                  Descrizione
+                </th>
+                <th onclick="sortTable('uscite', 'valore')" data-sort="valore">
+                  Valore €
+                </th>
+                <th
+                  onclick="sortTable('uscite', 'categoria')"
+                  data-sort="categoria"
+                >
+                  Categoria
+                </th>
+                <th onclick="sortTable('uscite', 'tipo')" data-sort="tipo">
+                  Tipo
+                </th>
+                <th class="no-sort">Anno</th>
+                <th class="no-sort"></th>
+              </tr>
+            </thead>
+            <tbody id="tbody-uscite"></tbody>
+          </table>
+        </div>
+        <div
+          id="uscite-summary"
+          style="
+            margin-top: 0.75rem;
+            text-align: right;
+            font-size: 0.85rem;
+            color: var(--muted);
+          "
+        ></div>
+      </div>
+
+      <!-- ═══════════ ENTRATE ═══════════ -->
+      <div class="tab-content" id="tab-entrate">
+        <div class="sec-hdr">
+          <div class="sec-title">💰 Entrate</div>
+          <button
+            class="btn btn-success"
+            onclick="openModal('modal-add-entrata')"
+          >
+            + Aggiungi Entrata
+          </button>
+        </div>
+        <div class="filters">
+          <select id="f-entrata-year" onchange="renderEntrate()">
+            <option value="">Tutti gli anni</option>
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+          </select>
+          <select id="f-entrata-month" onchange="renderEntrate()">
+            <option value="">Tutti i mesi</option>
+          </select>
+          <select id="f-entrata-tipo" onchange="renderEntrate()">
+            <option value="">Tutti i tipi</option>
+          </select>
+          <input
+            type="text"
+            id="f-entrata-search"
+            placeholder="🔍 Cerca descrizione…"
+            oninput="renderEntrate()"
+            style="flex: 1; min-width: 160px"
+          />
+        </div>
+        <div class="tbl-wrap">
+          <table id="tbl-entrate">
+            <thead>
+              <tr>
+                <th onclick="sortTable('entrate', 'data')" data-sort="data">
+                  Data
+                </th>
+                <th
+                  onclick="sortTable('entrate', 'descrizione')"
+                  data-sort="descrizione"
+                >
+                  Descrizione
+                </th>
+                <th onclick="sortTable('entrate', 'valore')" data-sort="valore">
+                  Valore €
+                </th>
+                <th onclick="sortTable('entrate', 'tipo')" data-sort="tipo">
+                  Tipo
+                </th>
+                <th class="no-sort">Anno</th>
+                <th class="no-sort"></th>
+              </tr>
+            </thead>
+            <tbody id="tbody-entrate"></tbody>
+          </table>
+        </div>
+        <div
+          id="entrate-summary"
+          style="
+            margin-top: 0.75rem;
+            text-align: right;
+            font-size: 0.85rem;
+            color: var(--muted);
+          "
+        ></div>
+      </div>
+
+      <!-- ═══════════ GESTIONE ═══════════ -->
+      <div class="tab-content" id="tab-gestione">
+        <div class="sec-hdr">
+          <div class="sec-title">📋 Gestione Pocket Money</div>
+          <div class="pills" id="gest-year-pills">
+            <button class="pill" onclick="setGestYear('tutti', this)">
+              Tutti
+            </button>
+            <button class="pill" onclick="setGestYear('2024', this)">
+              2024
+            </button>
+            <button class="pill" onclick="setGestYear('2025', this)">
+              2025
+            </button>
+            <button class="pill active" onclick="setGestYear('2026', this)">
+              2026
+            </button>
+          </div>
+        </div>
+        <div class="gest-summary-grid" id="gest-summary-cards"></div>
+        <div class="card section-gap">
+          <div class="card-title" id="gest-monthly-title">
+            Dettaglio Mensile
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="no-sort">Mese</th>
+                  <th class="no-sort" style="text-align: center">Fisse €</th>
+                  <th class="no-sort" style="text-align: center">Unità</th>
+                  <th class="no-sort" style="text-align: center">Budget</th>
+                  <th class="no-sort" style="text-align: center">Media</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-gestione"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Confronto Storico 2024 · 2025 · 2026</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="no-sort">Mese</th>
+                  <th
+                    class="no-sort"
+                    style="background: #dbeafe; color: #1e40af"
+                  >
+                    Unità 2024
+                  </th>
+                  <th
+                    class="no-sort"
+                    style="background: #dbeafe; color: #1e40af"
+                  >
+                    Budget 2024
+                  </th>
+                  <th
+                    class="no-sort"
+                    style="background: #dcfce7; color: #15803d"
+                  >
+                    Unità 2025
+                  </th>
+                  <th
+                    class="no-sort"
+                    style="background: #dcfce7; color: #15803d"
+                  >
+                    Budget 2025
+                  </th>
+                  <th
+                    class="no-sort"
+                    style="background: #fef9c3; color: #92400e"
+                  >
+                    Unità 2026
+                  </th>
+                  <th
+                    class="no-sort"
+                    style="background: #fef9c3; color: #92400e"
+                  >
+                    Budget 2026
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="tbody-gest-compare"></tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Gestione histogram -->
+        <div class="card" style="margin-top: 1rem">
+          <div class="card-title">Budget Mensile per Anno (istogramma)</div>
+          <div class="chart-wrap-lg"><canvas id="chartGestione"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ═══════════ IMPOSTAZIONI ═══════════ -->
+      <div class="tab-content" id="tab-impostazioni">
+        <div class="sec-title" style="margin-bottom: 1rem">⚙️ Impostazioni</div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Categorie Uscite</div>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem">
+              <input
+                type="text"
+                id="new-cat-input"
+                placeholder="Nuova categoria…"
+                style="
+                  flex: 1;
+                  padding: 0.45rem 0.7rem;
+                  border: 1px solid var(--border);
+                  border-radius: 8px;
+                  font-size: 0.85rem;
+                "
+              />
+              <button class="btn btn-primary btn-sm" onclick="addCategoria()">
+                Aggiungi
+              </button>
+            </div>
+            <div class="tag-list" id="cat-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Tipi di Pagamento (Uscite)</div>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem">
+              <input
+                type="text"
+                id="new-tipo-input"
+                placeholder="Nuovo tipo…"
+                style="
+                  flex: 1;
+                  padding: 0.45rem 0.7rem;
+                  border: 1px solid var(--border);
+                  border-radius: 8px;
+                  font-size: 0.85rem;
+                "
+              />
+              <button class="btn btn-primary btn-sm" onclick="addTipo()">
+                Aggiungi
+              </button>
+            </div>
+            <div class="tag-list" id="tipo-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Tipi di Entrata</div>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem">
+              <input
+                type="text"
+                id="new-etipo-input"
+                placeholder="Nuovo tipo entrata…"
+                style="
+                  flex: 1;
+                  padding: 0.45rem 0.7rem;
+                  border: 1px solid var(--border);
+                  border-radius: 8px;
+                  font-size: 0.85rem;
+                "
+              />
+              <button class="btn btn-primary btn-sm" onclick="addETipo()">
+                Aggiungi
+              </button>
+            </div>
+            <div class="tag-list" id="etipo-list"></div>
+          </div>
+          <!-- SALDI INIZIALI -->
+          <div class="card">
+            <div class="card-title">💳 Saldi Iniziali (inizio 2024)</div>
+            <p
+              style="font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem"
+            >
+              Imposta i saldi di partenza per il calcolo del saldo attuale.
+            </p>
+            <div
+              style="
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 0.6rem;
+                margin-top: 0.75rem;
+              "
+            >
+              <div class="fg" style="margin-bottom: 0">
+                <label>Conto Bancario (€)</label>
+                <input
+                  type="number"
+                  id="saldo-conto"
+                  step="0.01"
+                  placeholder="0.00"
+                  oninput="saveSaldi()"
+                />
+              </div>
+              <div class="fg" style="margin-bottom: 0">
+                <label>Portafoglio / Contanti (€)</label>
+                <input
+                  type="number"
+                  id="saldo-portafoglio"
+                  step="0.01"
+                  placeholder="0.00"
+                  oninput="saveSaldi()"
+                />
+              </div>
+              <div class="fg" style="margin-bottom: 0">
+                <label>Conto Deposito (€)</label>
+                <input
+                  type="number"
+                  id="saldo-deposito"
+                  step="0.01"
+                  placeholder="0.00"
+                  oninput="saveSaldi()"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- EXPORT -->
+        <div class="card" style="margin-top: 1rem">
+          <div class="card-title">Dati &amp; Export</div>
+          <div
+            style="
+              display: flex;
+              flex-wrap: wrap;
+              gap: 0.75rem;
+              margin-top: 0.75rem;
+            "
+          >
+            <button class="btn btn-ghost" onclick="exportData()">
+              📤 Esporta JSON
+            </button>
+            <button class="btn btn-ghost" onclick="exportCSV('uscite')">
+              📊 Esporta Uscite CSV
+            </button>
+            <button class="btn btn-ghost" onclick="exportCSV('entrate')">
+              📊 Esporta Entrate CSV
+            </button>
+            <button class="btn btn-danger" onclick="confirmReset()">
+              🔄 Ripristina impostazioni
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- MODAL ADD USCITA -->
+    <div class="overlay" id="modal-add-uscita">
+      <div class="modal">
+        <div class="modal-title">➕ Nuova Uscita</div>
+        <div class="fg">
+          <label>Data</label><input type="date" id="nu-data" />
+        </div>
+        <div class="fg">
+          <label>Descrizione</label>
+          <input
+            type="text"
+            id="nu-desc"
+            placeholder="es. Benzina, McDonald…"
+            autocomplete="off"
+          />
+          <div class="ac-dropdown" id="nu-desc-ac"></div>
+        </div>
+        <div class="fg">
+          <label>Valore (€)</label
+          ><input
+            type="number"
+            id="nu-val"
+            step="0.01"
+            min="0.01"
+            placeholder="0.00"
+          />
+        </div>
+        <div class="fg">
+          <label>Categoria</label
+          ><select id="nu-cat" onchange="toggleNuTipoFg()"></select>
+        </div>
+        <div class="fg" id="nu-tipo-fg">
+          <label>Tipo Pagamento</label
+          ><select id="nu-tipo"></select>
+        </div>
+        <div class="fg">
+          <label>Anno</label>
+          <select id="nu-year">
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026" selected>2026</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="btn btn-ghost"
+            onclick="closeModal('modal-add-uscita')"
+          >
+            Annulla
+          </button>
+          <button class="btn btn-primary" onclick="addUscita()">
+            Aggiungi
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL ADD ENTRATA -->
+    <div class="overlay" id="modal-add-entrata">
+      <div class="modal">
+        <div class="modal-title">➕ Nuova Entrata</div>
+        <div class="fg">
+          <label>Data</label><input type="date" id="ne-data" />
+        </div>
+        <div class="fg">
+          <label>Descrizione</label>
+          <input
+            type="text"
+            id="ne-desc"
+            placeholder="es. Mamma, Assegno Unico…"
+            autocomplete="off"
+          />
+          <div class="ac-dropdown" id="ne-desc-ac"></div>
+        </div>
+        <div class="fg">
+          <label>Valore (€)</label
+          ><input
+            type="number"
+            id="ne-val"
+            step="0.01"
+            min="0.01"
+            placeholder="0.00"
+          />
+        </div>
+        <div class="fg">
+          <label>Tipo</label
+          ><select id="ne-tipo"></select>
+        </div>
+        <div class="fg">
+          <label>Anno</label>
+          <select id="ne-year">
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026" selected>2026</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="btn btn-ghost"
+            onclick="closeModal('modal-add-entrata')"
+          >
+            Annulla
+          </button>
+          <button class="btn btn-success" onclick="addEntrata()">
+            Aggiungi
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL EDIT USCITA -->
+    <div class="overlay" id="modal-edit-uscita">
+      <div class="modal">
+        <div class="modal-title">✏️ Modifica Uscita</div>
+        <div class="fg">
+          <label>Data</label><input type="date" id="eu-data" />
+        </div>
+        <div class="fg">
+          <label>Descrizione</label>
+          <input type="text" id="eu-desc" autocomplete="off" />
+          <div class="ac-dropdown" id="eu-desc-ac"></div>
+        </div>
+        <div class="fg">
+          <label>Valore (€)</label
+          ><input
+            type="number"
+            id="eu-val"
+            step="0.01"
+            min="0.01"
+            placeholder="0.00"
+          />
+        </div>
+        <div class="fg">
+          <label>Categoria</label
+          ><select id="eu-cat" onchange="toggleEuTipoFg()"></select>
+        </div>
+        <div class="fg" id="eu-tipo-fg">
+          <label>Tipo Pagamento</label
+          ><select id="eu-tipo"></select>
+        </div>
+        <input type="hidden" id="eu-year" /><input type="hidden" id="eu-id" />
+        <div class="modal-footer">
+          <button
+            class="btn btn-ghost"
+            onclick="closeModal('modal-edit-uscita')"
+          >
+            Annulla
+          </button>
+          <button class="btn btn-primary" onclick="saveEditUscita()">
+            Salva
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL EDIT ENTRATA -->
+    <div class="overlay" id="modal-edit-entrata">
+      <div class="modal">
+        <div class="modal-title">✏️ Modifica Entrata</div>
+        <div class="fg">
+          <label>Data</label><input type="date" id="ee-data" />
+        </div>
+        <div class="fg">
+          <label>Descrizione</label>
+          <input type="text" id="ee-desc" autocomplete="off" />
+          <div class="ac-dropdown" id="ee-desc-ac"></div>
+        </div>
+        <div class="fg">
+          <label>Valore (€)</label
+          ><input
+            type="number"
+            id="ee-val"
+            step="0.01"
+            min="0.01"
+            placeholder="0.00"
+          />
+        </div>
+        <div class="fg">
+          <label>Tipo</label
+          ><select id="ee-tipo"></select>
+        </div>
+        <input type="hidden" id="ee-year" /><input type="hidden" id="ee-id" />
+        <div class="modal-footer">
+          <button
+            class="btn btn-ghost"
+            onclick="closeModal('modal-edit-entrata')"
+          >
+            Annulla
+          </button>
+          <button class="btn btn-success" onclick="saveEditEntrata()">
+            Salva
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js" defer></script>
+  </body>
+</html>

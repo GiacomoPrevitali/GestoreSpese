@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Accedi — Le mie Spese</title>
+    <link rel="icon" type="image/x-icon" href="logo.ico" />
+    <link rel="stylesheet" href="styleLogin.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  </head>
+  <body>
+    <div class="noise"></div>
+
+    <div class="card">
+      <div class="logo-area">
+        <div class="logo-icon">💳</div>
+        <div class="logo-title">Le mie Spese</div>
+        <div class="logo-sub">Accedi al tuo account</div>
+      </div>
+
+      <div id="msg-box" class="msg"></div>
+
+      <!-- EMAIL + PASSWORD -->
+      <div class="fg">
+        <label for="email">Email</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          placeholder="tua@email.com"
+          autocomplete="email"
+          inputmode="email"
+        />
+      </div>
+
+      <div class="fg">
+        <label for="password">Password</label>
+        <div class="password-wrap">
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+          />
+          <button
+            class="toggle-pw"
+            onclick="togglePw()"
+            type="button"
+            title="Mostra/nascondi password"
+          >
+            <svg
+              id="eye-icon"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-login" id="btn-login" onclick="loginEmail()">
+        Accedi
+      </button>
+    </div>
+    <script src="scriptLogin.js" defer></script>
+  </body>
+</html>
